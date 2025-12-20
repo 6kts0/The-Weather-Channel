@@ -19,7 +19,7 @@ A simple Python application for fetching and displaying local weather forecasts.
 
 1. Clone this repository:
 ```bash
-git clone https://github.com/yourusername/The-Weather-Channel.git
+git clone https://github.com/6kts0/The-Weather-Channel.git
 cd The-Weather-Channel
 ```
 
