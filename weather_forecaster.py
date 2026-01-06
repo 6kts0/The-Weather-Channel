@@ -1,62 +1,87 @@
-import python_weather
+"""
+Import your weatherbit API key into config.py
+"""
+
+import requests
+import config
 from datetime import datetime
-import time
-from zoneinfo import ZoneInfo
-import pytz
-import asyncio
+import ollama
 
-"""
-Domestic Weather Forecaster
-"""
+KEY = config.api_key
+url = "https://api.weatherbit.io/v2.0/current"
 
-async def main():
-    async with python_weather.Client(unit=python_weather.IMPERIAL) as client:
 
-        print('=' * 65 + '\n')
-        print("                 --- TODAYS FORECAST ---\n")
-        print('=' * 65)
+def forecast_dscrpt(description, temp, precip_rating, wnd_spd, app_temp, ollama_fil_response):
 
-        # City to fetch forecast
-        usr_map = input("Enter a city to fetch the current weather: ").strip()
-        usr_map_formed = usr_map.replace(" ", "_").title()
-        weather = await client.get(usr_map_formed)
+    print('=' * 45)
+    print("+         =======  SUMMARY  =======         +")
+    print('=' * 45 + '\n')
+    print(f"{ollama_fil_response}")
+    print('=' * 45)
+    print(f"{description}")
+    print('=' * 45)
+    print(f"Temperature: {temp}°F")
+    print('=' * 45) 
+    print(f"Feels like {app_temp}°F")
+    print('=' * 45)
+    if precip_rating > 0: 
+        print("Raining") 
+    else:
+        print("No precipitation")
+    print('=' * 45)
+    print(f"Wind speed: {int(wnd_spd)}MPH")
+    print('=' * 45)
 
-        # Fetching location time
-        map_time = "America/" + usr_map_formed
-        city_tz = ZoneInfo(map_time)
-        city_datetime = datetime.now(tz=city_tz)
-        city_datetime = city_datetime.strftime("%I:%M%p")
+def ollama_descript(data):
+    client = ollama.Client()
+    ollama_response = client.chat(
+        model='Konsumer/weather:latest',
+        messages=[
+            {
+                "role": "user",
+                "content": f"Summarize this weather data in 100 words or less: {data}. Use Imperial units."
+            }
+        ]
+    )
 
-        # Current forecast at formatted time
-        print('=' * 65)
-        print(f"The weather in {usr_map_formed.replace('_', ' ')} today is {weather.temperature} degrees fahrenheit at {city_datetime}") 
-        
-        # Three day weather forecast
-        print('=' * 65 + '\n')
-        print("               --- Near Future Forecast ---\n")
-        print('=' * 65 )
+    ollama_fil_response = (ollama_response['message']['content'])
+    return ollama_fil_response
+    
 
-        for daily in weather:
-            daily_time_format = daily.date.strftime("%Y/%m/%d")
-            print(f"On {daily_time_format} the temperature will be {daily.temperature} degrees fahrenheit")
-            if daily.temperature >= 76:
-                print("ADVISORY: The current temperature is above the global average, apply sunscreen before sun exposure and stay hydrated")
-            elif daily.temperature < 76 and daily.temperature >= 70:
-                print("ADVISORY: Its pretty warm out, shorts or a t-shirt along with sunscreen is highly recommended")
-            elif daily.temperature < 70 and daily.temperature >= 65:
-                print("ADVISORY: A hoodie or light jacket is recommended for this temperature range")
-            elif daily.temperature < 65 and daily.temperature >= 60:
-                print("ADVISORY: This temperature calls for a sufficiently warm jacket and/or multiple layers with pants")
-            elif daily.temperature < 60 and daily.temperature >= 55:
-                print("ADVISORY: Wear multiple layers and/or a jacket")
-            elif daily.temperature < 55 and daily.temperature >= 40:
-                print("ADVISORY: This temperature puts the immune system at risk and requires a multipe")
-            elif daily.temperature < 40:
-                print("ADVISORY: The current temperature can cause vulnerability to viral sickness unless your equipped with proper outer layers")
-            elif daily.temperature <= 30:
-                print("ADVISORY: Its freezing... Literally")
-            print('-' * 60)
 
+def main():
+    print("=" * 45)
+    usr_city = input("Enter a city to get weather details: ")
+    usr_cntry = input("Enter a country code (e.g. US, GB, or JP): ")
+    state = input("Enter a State code (e.g. CA, IL, or NY): ")
+    city = f"{usr_city.strip().title()},{usr_cntry.strip().upper()}"
+
+    print('=' * 45)
+    print(f"      =======  WEATHER FORECAST  =======    ")
+    print(f"                  {usr_city.title()}, {state.strip().upper()}")
+
+    params = {
+    "city": city, 
+    "key": KEY,
+    'units': "I"
+    }
+
+    # DEBUG
+    response = requests.get(url, params=params)
+    data = response.json()
+    #print("Parsed JSON:", data)
+
+    
+    temp = data['data'][0]['temp']
+    app_temp = data['data'][0]['app_temp']
+    precip_rating = data['data'][0]['precip']
+    wnd_spd = data['data'][0]['wind_spd'] * 2.23694
+    description = data['data'][0]['weather']['description']
+    state = data['data'][0]['state_code']
+    city = data['data'][0]['city_name']
+
+    ollama_summary = ollama_descript(data)
+    forecast_dscrpt(description, temp, precip_rating, wnd_spd, app_temp, ollama_summary)
 
 if __name__ == '__main__':
-    asyncio.run(main())
+    main()
